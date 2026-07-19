@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vinnexx Video Frame Converter</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- JSZip CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js">
+    </script>
+    <!-- FileSaver CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js">
+    </script>
+
+    <!-- FFmpeg.wasm Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "@ffmpeg/ffmpeg": "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js",
+                "@ffmpeg/util": "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js"
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            /* Neo Brutalism Light Theme */
+            --bg: #FFF8F0;
+            --surface: #FFFFFF;
+            --surface-alt: #FFFDF7;
+            --text: #1A1A1A;
+            --text-secondary: #4A4A4A;
+            --text-muted: #777777;
+            --border: #000000;
+            --border-width: 3px;
+            --shadow-offset: 6px;
+            --shadow-offset-sm: 4px;
+            --shadow-color: #000000;
+            --accent: #FFE566;
+            --accent-hover: #FFD93D;
+            --primary: #FF6B6B;
+            --primary-hover: #FF5252;
+            --secondary: #4ECDC4;
+            --secondary-hover: #3DBDB5;
+            --success: #51CF66;
+            --error: #FF6B6B;
+            --warning: #FFB84D;
+            --info: #5C7CFA;
+            --muted: #F0EDE6;
+            --muted-hover: #E5E0D8;
+            --overlay-bg: rgba(255, 248, 240, 0.85);
+            --toast-bg: #FFFFFF;
+            --toast-text: #1A1A1A;
+            --input-bg: #FFFDF7;
+            --input-border: #000000;
+            --progress-bg: #F0EDE6;
+            --progress-fill: #FFE566;
+            --card-radius: 18px;
+            --btn-radius: 14px;
+            --input-radius: 12px;
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1A1A2E;
+                --surface: #252540;
+                --surface-alt: #2A2A48;
+                --text: #E8E8E8;
+                --text-secondary: #C0C0C0;
+                --text-muted: #999999;
+                --border: #FFFFFF;
+                --shadow-color: #FFFFFF;
+                --accent: #FFD93D;
+                --accent-hover: #FFE566;
+                --primary: #FF8A80;
+                --primary-hover: #FF6E6E;
+                --secondary: #64FFDA;
+                --secondary-hover: #4AE0C4;
+                --success: #69DB7C;
+                --error: #FF8A80;
+                --warning: #FFC078;
+                --info: #748FFC;
+                --muted: #333350;
+                --muted-hover: #404068;
+                --overlay-bg: rgba(26, 26, 46, 0.88);
+                --toast-bg: #252540;
+                --toast-text: #E8E8E8;
+                --input-bg: #2A2A48;
+                --input-border: #FFFFFF;
+                --progress-bg: #333350;
+                --progress-fill: #FFD93D;
+            }
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px 40px;
+            transition: background-color var(--transition), color var(--transition);
+            background-image: radial-gradient(circle at 20% 10%, rgba(255, 229, 102, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 90%, rgba(78, 205, 196, 0.06) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* ============ MAIN CONTAINER ============ */
+        .app-container {
+            width: 100%;
+            max-width: 860px;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            z-index: 1;
+        }
+
+        /* ============ HEADER ============ */
+        .app-header {
+            text-align: center;
+            padding: 28px 20px 10px;
+            animation: fadeSlideDown 0.6s ease-out;
+        }
+
+        .app-header .logo-icon {
+            display: inline-block;
+            margin-bottom: 8px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .app-header h1 {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            color: var(--text);
+            line-height: 1.1;
+            text-transform: uppercase;
+            word-break: break-word;
+        }
+
+        .app-header h1 .highlight {
+            display: inline-block;
+            background: var(--accent);
+            color: #1A1A1A;
+            padding: 2px 14px;
+            border: var(--border-width) solid var(--border);
+            border-radius: 10px;
+            box-shadow: var(--shadow-offset-sm) var(--shadow-offset-sm) 0px var(--shadow-color);
+            margin: 0 2px;
+        }
+
+        .app-header .subtitle {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            letter-spacing: 0.01em;
+        }
+
+        /* ============ CARDS ============ */
+        .card {
+            background: var(--surface);
+            border: var(--border-width) solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 22px 24px;
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--shadow-color);
+            transition: box-shadow var(--transition), transform var(--transition), background var(--transition);
+            animation: fadeSlideUp 0.5s ease-out forwards;
+            opacity: 0;
+            position: relative;
+            overflow: visible;
+        }
+
+        .card:nth-child(1) {
+            animation-delay: 0.05s;
+        }
+        .card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+        .card:nth-child(3) {
+            animation-delay: 0.15s;
+        }
+        .card:nth-child(4) {
+            animation-delay: 0.2s;
+        }
+        .card:nth-child(5) {
+            animation-delay: 0.25s;
+        }
+        .card:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 8px 8px 0px var(--shadow-color);
+            transform: translate(-2px, -2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px dashed var(--muted);
+        }
+
+        .card-header .card-icon {
+            flex-shrink: 0;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent);
+            border: 2.5px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 3px 3px 0px var(--shadow-color);
+        }
+
+        .card-header h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text);
+        }
+
+        /* ============ UPLOAD ZONE ============ */
+        .upload-zone {
+            border: 3px dashed var(--border);
+            border-radius: var(--card-radius);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            background: var(--surface-alt);
+            position: relative;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            user-select: none;
+        }
+
+        .upload-zone.drag-over {
+            background: var(--accent);
+            border-color: var(--border);
+            box-shadow: 0 0 0 8px rgba(255, 229, 102, 0.3);
+            transform: scale(1.02);
+        }
+
+        .upload-zone.has-file {
+            border-style: solid;
+            background: #E8F8E8;
+            border-color: var(--success);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .upload-zone.has-file {
+                background: #1E3A2E;
+                border-color: var(--success);
+            }
+        }
+
+        .upload-zone .upload-icon-svg {
+            width: 56px;
+            height: 56px;
+            pointer-events: none;
+        }
+
+        .upload-zone .upload-text {
+            font-weight: 700;
+            font-size: 1.05rem;
+            pointer-events: none;
+            color: var(--text);
+        }
+
+        .upload-zone .upload-subtext {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .upload-zone .file-name-display {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--success);
+            pointer-events: none;
+            word-break: break-all;
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        .error-badge {
+            display: inline-block;
+            background: var(--error);
+            color: #fff;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 2.5px solid var(--border);
+            font-size: 0.85rem;
+            box-shadow: 3px 3px 0px var(--shadow-color);
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* ============ VIDEO INFO GRID ============ */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .info-item {
+            background: var(--surface-alt);
+            border: 2px solid var(--border);
+            border-radius: var(--input-radius);
+            padding: 10px 14px;
+            box-shadow: 3px 3px 0px var(--shadow-color);
+            transition: all var(--transition);
+        }
+
+        .info-item .info-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .info-item .info-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+            word-break: break-all;
+        }
+
+        /* ============ FORM ELEMENTS ============ */
+        .form-group {
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.01em;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-group label .label-badge {
+            font-size: 0.65rem;
+            background: var(--accent);
+            color: #1A1A1A;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 700;
+            border: 1.5px solid var(--border);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            font-family: var(--font-family);
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 10px 14px;
+            border: 2.5px solid var(--input-border);
+            border-radius: var(--input-radius);
+            background: var(--input-bg);
+            color: var(--text);
+            box-shadow: 3px 3px 0px var(--shadow-color);
+            transition: all var(--transition);
+            outline: none;
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        select {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231A1A1A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            select {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23E8E8E8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            }
+        }
+
+        input:focus,
+        select:focus {
+            box-shadow: 5px 5px 0px var(--shadow-color);
+            transform: translate(-1px, -1px);
+            border-color: var(--accent);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 10px;
+            background: var(--muted);
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            outline: none;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px var(--shadow-color);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border: 3px solid var(--border);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 3px 3px 0px var(--shadow-color);
+            transition: all var(--transition);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .range-with-value {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .range-with-value input[type="range"] {
+            flex: 1;
+        }
+
+        .range-value-display {
+            font-weight: 900;
+            font-size: 1.2rem;
+            min-width: 44px;
+            text-align: center;
+            background: var(--accent);
+            color: #1A1A1A;
+            padding: 6px 12px;
+            border-radius: var(--input-radius);
+            border: 2.5px solid var(--border);
+            box-shadow: 3px 3px 0px var(--shadow-color);
+        }
+
+        /* ============ BUTTONS ============ */
+        .btn {
+            font-family: var(--font-family);
+            font-weight: 800;
+            font-size: 1rem;
+            padding: 13px 28px;
+            border: var(--border-width) solid var(--border);
+            border-radius: var(--btn-radius);
+            cursor: pointer;
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--shadow-color);
+            transition: all var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:active {
+            box-shadow: 2px 2px 0px var(--shadow-color);
+            transform: translate(4px, 4px);
+        }
+
+        .btn-convert {
+            background: #FFE566;
+            color: #1A1A1A;
+            font-size: 1.2rem;
+            padding: 16px 40px;
+            width: 100%;
+            letter-spacing: 0.05em;
+        }
+        .btn-convert:hover {
+            background: #FFD93D;
+            box-shadow: 9px 9px 0px var(--shadow-color);
+            transform: translate(-3px, -3px);
+        }
+        .btn-convert:disabled {
+            background: var(--muted);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: 4px 4px 0px var(--shadow-color);
+            transform: none;
+        }
+        .btn-convert:disabled:hover {
+            box-shadow: 4px 4px 0px var(--shadow-color);
+            transform: none;
+        }
+
+        .btn-small {
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            box-shadow: 3px 3px 0px var(--shadow-color);
+        }
+
+        /* ============ LOADING OVERLAY ============ */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: var(--overlay-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .overlay-card {
+            background: var(--surface);
+            border: var(--border-width) solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 30px 28px;
+            box-shadow: 10px 10px 0px var(--shadow-color);
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .overlay-card h3 {
+            font-weight: 900;
+            font-size: 1.2rem;
+            margin-bottom: 6px;
+        }
+
+        .overlay-card .stage-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+        }
+
+        .progress-bar-outer {
+            width: 100%;
+            height: 18px;
+            background: var(--progress-bg);
+            border-radius: 20px;
+            border: 2.5px solid var(--border);
+            overflow: hidden;
+            box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.08);
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            background: var(--progress-fill);
+            border-radius: 20px;
+            transition: width 0.4s ease;
+            min-width: 0%;
+            width: 0%;
+            position: relative;
+        }
+
+        .progress-bar-inner::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 30px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+            border-radius: 0 20px 20px 0;
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .progress-stats span {
+            background: var(--surface-alt);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1.5px solid var(--border);
+        }
+
+        /* ============ TOAST CONTAINER ============ */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+            max-width: 380px;
+            width: calc(100% - 40px);
+        }
+
+        .toast {
+            background: var(--toast-bg);
+            color: var(--toast-text);
+            border: var(--border-width) solid var(--border);
+            border-radius: var(--btn-radius);
+            padding: 14px 18px;
+            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--shadow-color);
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: all;
+            animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .toast.removing {
+            animation: slideOutRight 0.35s ease forwards;
+            opacity: 0;
+        }
+        .toast.toast-success {
+            border-left: 6px solid var(--success);
+        }
+        .toast.toast-error {
+            border-left: 6px solid var(--error);
+        }
+        .toast.toast-warning {
+            border-left: 6px solid var(--warning);
+        }
+        .toast.toast-info {
+            border-left: 6px solid var(--info);
+        }
+
+        /* ============ FOOTER ============ */
+        .app-footer {
+            text-align: center;
+            padding: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+            animation: fadeSlideUp 0.6s ease-out 0.4s forwards;
+            opacity: 0;
+        }
+        .app-footer .heart {
+            color: var(--primary);
+            display: inline-block;
+            animation: heartbeat 1.2s ease-in-out infinite;
+        }
+
+        /* ============ ANIMATIONS ============ */
+        @keyframes fadeSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes fadeSlideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes slideInRight {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+        @keyframes popIn {
+            from {
+                transform: scale(0.85);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            20% {
+                transform: translateX(-8px);
+            }
+            40% {
+                transform: translateX(8px);
+            }
+            60% {
+                transform: translateX(-6px);
+            }
+            80% {
+                transform: translateX(4px);
+            }
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        @keyframes heartbeat {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            25% {
+                transform: scale(1.3);
+            }
+            50% {
+                transform: scale(1);
+            }
+            75% {
+                transform: scale(1.2);
+            }
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .pulsing {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 768px) {
+            .app-header h1 {
+                font-size: 1.6rem;
+            }
+            .app-header .subtitle {
+                font-size: 0.85rem;
+            }
+            .card {
+                padding: 16px 14px;
+                border-radius: 14px;
+                box-shadow: 4px 4px 0px var(--shadow-color);
+            }
+            .card:hover {
+                box-shadow: 5px 5px 0px var(--shadow-color);
+                transform: translate(-1px, -1px);
+            }
+            .info-grid {
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+                gap: 7px;
+            }
+            .info-item {
+                padding: 8px 10px;
+            }
+            .info-item .info-value {
+                font-size: 0.8rem;
+            }
+            .btn-convert {
+                font-size: 1rem;
+                padding: 14px 24px;
+            }
+            .upload-zone {
+                padding: 24px 14px;
+                min-height: 140px;
+            }
+            .overlay-card {
+                padding: 20px 16px;
+            }
+            .toast-container {
+                top: 8px;
+                right: 8px;
+                max-width: calc(100% - 16px);
+            }
+            .range-with-value {
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .app-header h1 {
+                font-size: 1.3rem;
+            }
+            .card-header h3 {
+                font-size: 0.95rem;
+            }
+            .info-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 5px;
+            }
+            .btn {
+                font-size: 0.85rem;
+                padding: 10px 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== APP CONTAINER ==================== -->
+    <div class="app-container" id="appContainer">
+
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="logo-icon">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="4" width="44" height="36" rx="6" fill="#FFE566" stroke="#000" stroke-width="3"/>
+                    <polygon points="17,12 17,32 35,22" fill="#1A1A1A" stroke="#1A1A1A" stroke-width="2" stroke-linejoin="round"/>
+                    <rect x="6" y="38" width="36" height="5" rx="3" fill="#4ECDC4" stroke="#000" stroke-width="2.5"/>
+                </svg>
+            </div>
+            <h1>VINNEXX <span class="highlight">VIDEO</span> CONVERTER</h1>
+            <p class="subtitle">Convert video into PNG frame sequence for Videotron.</p>
+        </header>
+
+        <!-- CARD 1: UPLOAD -->
+        <div class="card" id="uploadCard">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <h3>Upload Video</h3>
+            </div>
+            <div class="upload-zone" id="uploadZone" tabindex="0" role="button" aria-label="Upload video file">
+                <svg class="upload-icon-svg" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="18" width="44" height="32" rx="5" fill="var(--surface-alt)" stroke="var(--border)" stroke-width="3"/>
+                    <path d="M18 38L24 28L30 34L36 24L42 38" fill="none" stroke="var(--border)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="38" cy="26" r="3" fill="var(--accent)" stroke="var(--border)" stroke-width="2"/>
+                    <polyline points="28,2 28,14" stroke="var(--border)" stroke-width="3.5" stroke-linecap="round"/>
+                    <polyline points="20,9 28,2 36,9" stroke="var(--border)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="upload-text">Drag & Drop Video Here</span>
+                <span class="upload-subtext">or click to browse — MP4, MOV, WEBM, AVI, MKV (Max 60s)</span>
+                <span class="file-name-display" id="fileNameDisplay" style="display:none;"></span>
+                <span class="error-badge" id="errorBadge" style="display:none;"></span>
+                <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-matroska,.mp4,.mov,.webm,.avi,.mkv">
+            </div>
+        </div>
+
+        <!-- CARD 2: VIDEO INFORMATION -->
+        <div class="card" id="infoCard">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <h3>Video Information</h3>
+            </div>
+            <div class="info-grid" id="infoGrid">
+                <div class="info-item"><span class="info-label">File Name</span><span class="info-value" id="infoFileName">—</span></div>
+                <div class="info-item"><span class="info-label">File Size</span><span class="info-value" id="infoFileSize">—</span></div>
+                <div class="info-item"><span class="info-label">Format</span><span class="info-value" id="infoFormat">—</span></div>
+                <div class="info-item"><span class="info-label">FPS (Detected)</span><span class="info-value" id="infoFPS">—</span></div>
+                <div class="info-item"><span class="info-label">Duration</span><span class="info-value" id="infoDuration">—</span></div>
+                <div class="info-item"><span class="info-label">Resolution</span><span class="info-value" id="infoResolution">—</span></div>
+                <div class="info-item"><span class="info-label">Aspect Ratio</span><span class="info-value" id="infoAspectRatio">—</span></div>
+                <div class="info-item"><span class="info-label">Codec</span><span class="info-value" id="infoCodec">—</span></div>
+                <div class="info-item"><span class="info-label">Est. Total Frames</span><span class="info-value" id="infoEstFrames">—</span></div>
+                <div class="info-item"><span class="info-label">Video Bitrate</span><span class="info-value" id="infoBitrate">—</span></div>
+                <div class="info-item"><span class="info-label">Audio Track</span><span class="info-value" id="infoAudio">—</span></div>
+                <div class="info-item"><span class="info-label">Orientation</span><span class="info-value" id="infoOrientation">—</span></div>
+            </div>
+        </div>
+
+        <!-- CARD 3: OUTPUT SETTINGS -->
+        <div class="card" id="settingsCard">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                </div>
+                <h3>Output Settings</h3>
+            </div>
+
+            <!-- Output Name -->
+            <div class="form-group">
+                <label for="outputName">Output Name</label>
+                <input type="text" id="outputName" value="video" maxlength="60" placeholder="Enter output name">
+            </div>
+
+            <!-- FPS Slider -->
+            <div class="form-group">
+                <label for="fpsSlider">FPS <span class="label-badge" id="fpsBadge">30</span></label>
+                <div class="range-with-value">
+                    <input type="range" id="fpsSlider" min="10" max="60" value="30" step="1">
+                    <span class="range-value-display" id="fpsDisplay">30</span>
+                </div>
+            </div>
+
+            <!-- Output Duration -->
+            <div class="form-group">
+                <label for="outputDuration">Output Duration (seconds)</label>
+                <input type="number" id="outputDuration" value="0" min="0.1" max="60" step="0.1" placeholder="Full video duration">
+                <span style="font-size:0.75rem;color:var(--text-muted);" id="durationHint">Set to 0 or match original for full duration</span>
+            </div>
+
+            <!-- Resolution -->
+            <div class="form-group">
+                <label for="resolutionSelect">Resolution</label>
+                <select id="resolutionSelect">
+                    <option value="256x256">256 × 256</option>
+                    <option value="512x512">512 × 512</option>
+                    <option value="768x768">768 × 768</option>
+                    <option value="1024x1024" selected>1024 × 1024 (Default)</option>
+                    <option value="1536x1536">1536 × 1536</option>
+                    <option value="2048x2048">2048 × 2048</option>
+                    <option value="custom">Custom…</option>
+                </select>
+            </div>
+            <div class="form-group" id="customResolutionGroup" style="display:none;">
+                <label>Custom Resolution</label>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <input type="number" id="customWidth" value="1024" min="32" max="4096" placeholder="Width" style="flex:1;min-width:80px;">
+                    <span style="align-self:center;font-weight:900;">×</span>
+                    <input type="number" id="customHeight" value="1024" min="32" max="4096" placeholder="Height" style="flex:1;min-width:80px;">
+                </div>
+            </div>
+
+            <!-- Image Format -->
+            <div class="form-group">
+                <label for="imageFormat">Image Format</label>
+                <select id="imageFormat">
+                    <option value="png" selected>PNG</option>
+                    <option value="webp">WEBP</option>
+                    <option value="jpg">JPG</option>
+                </select>
+            </div>
+
+            <!-- Quality / Compression settings -->
+            <div class="form-group" id="jpgQualityGroup" style="display:none;">
+                <label for="jpgQuality">JPEG Quality <span class="label-badge" id="jpgQualityBadge">85</span></label>
+                <div class="range-with-value">
+                    <input type="range" id="jpgQuality" min="1" max="100" value="85" step="1">
+                    <span class="range-value-display" id="jpgQualityDisplay">85</span>
+                </div>
+            </div>
+
+            <div class="form-group" id="webpQualityGroup" style="display:none;">
+                <label for="webpQuality">WEBP Quality <span class="label-badge" id="webpQualityBadge">80</span></label>
+                <div class="range-with-value">
+                    <input type="range" id="webpQuality" min="1" max="100" value="80" step="1">
+                    <span class="range-value-display" id="webpQualityDisplay">80</span>
+                </div>
+            </div>
+
+            <div class="form-group" id="pngCompressionGroup">
+                <label for="pngCompression">PNG Compression Level <span class="label-badge" id="pngCompressionBadge">3</span></label>
+                <div class="range-with-value">
+                    <input type="range" id="pngCompression" min="0" max="9" value="3" step="1">
+                    <span class="range-value-display" id="pngCompressionDisplay">3</span>
+                </div>
+                <span style="font-size:0.7rem;color:var(--text-muted);">0 = No compression (fast, large) | 9 = Max compression (slow, small)</span>
+            </div>
+        </div>
+
+        <!-- CARD 4: ESTIMATION -->
+        <div class="card" id="estimationCard">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
+                </div>
+                <h3>Estimation</h3>
+            </div>
+            <div class="info-grid" id="estimationGrid">
+                <div class="info-item"><span class="info-label">Est. Total Frames</span><span class="info-value" id="estTotalFrames">—</span></div>
+                <div class="info-item"><span class="info-label">Est. ZIP Size</span><span class="info-value" id="estZipSize">—</span></div>
+                <div class="info-item"><span class="info-label">Est. Memory Usage</span><span class="info-value" id="estMemory">—</span></div>
+                <div class="info-item"><span class="info-label">Est. Processing Time</span><span class="info-value" id="estTime">—</span></div>
+                <div class="info-item"><span class="info-label">Est. Upload Count</span><span class="info-value" id="estUploadCount">—</span></div>
+            </div>
+        </div>
+
+        <!-- CARD 5: ADVANCED -->
+        <div class="card" id="advancedCard">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <h3>Advanced Settings</h3>
+            </div>
+
+            <!-- Resize Method -->
+            <div class="form-group">
+                <label for="resizeMethod">Resize Method</label>
+                <select id="resizeMethod">
+                    <option value="bilinear" selected>Bilinear</option>
+                    <option value="nearest">Nearest</option>
+                    <option value="bicubic">Bicubic</option>
+                    <option value="lanczos">Lanczos</option>
+                </select>
+            </div>
+
+            <!-- Background Color -->
+            <div class="form-group">
+                <label for="bgColor">Background Color (for padding)</label>
+                <select id="bgColor">
+                    <option value="transparent" selected>Transparent</option>
+                    <option value="black">Black</option>
+                    <option value="white">White</option>
+                    <option value="custom">Custom…</option>
+                </select>
+            </div>
+            <div class="form-group" id="customBgColorGroup" style="display:none;">
+                <label for="customBgColorInput">Custom Background Hex</label>
+                <input type="text" id="customBgColorInput" value="#FF00FF" maxlength="7" placeholder="#RRGGBB">
+            </div>
+
+            <!-- Frame Naming -->
+            <div class="form-group">
+                <label for="frameNaming">Frame Naming Pattern</label>
+                <select id="frameNaming">
+                    <option value="video-0001" selected>video-0001, video-0002…</option>
+                    <option value="video_1">video_1, video_2…</option>
+                    <option value="frame0001">frame0001, frame0002…</option>
+                </select>
+            </div>
+
+            <!-- Padding Digits -->
+            <div class="form-group">
+                <label for="paddingDigits">Padding Digits</label>
+                <select id="paddingDigits">
+                    <option value="3">3 digits (001)</option>
+                    <option value="4" selected>4 digits (0001)</option>
+                    <option value="5">5 digits (00001)</option>
+                    <option value="6">6 digits (000001)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- CONVERT BUTTON -->
+        <button class="btn btn-convert" id="convertBtn" disabled>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,3 19,12 5,21 5,3"/></svg>
+            Convert Frames
+        </button>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            Made with <span class="heart">❤️</span> by Vinnexx
+        </footer>
+    </div>
+
+    <!-- ==================== LOADING OVERLAY ==================== -->
+    <div class="overlay" id="loadingOverlay">
+        <div class="overlay-card">
+            <h3 id="overlayTitle">Processing Video…</h3>
+            <p class="stage-label" id="stageLabel">Initializing FFmpeg…</p>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progressBarInner"></div>
+            </div>
+            <div class="progress-stats">
+                <span id="progressPercent">0%</span>
+                <span id="progressFrames">Frame: —</span>
+                <span id="progressETA">ETA: —</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST CONTAINER ==================== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ==================== MAIN SCRIPT ==================== -->
+    <script type="module">
+        import { FFmpeg } from '@ffmpeg/ffmpeg';
+        import { fetchFile, toBlobURL } from '@ffmpeg/util';
+
+        // Access global libraries loaded via CDN
+        const JSZip = window.JSZip;
+        const saveAs = window.saveAs;
+
+        // ==================== DOM REFERENCES ====================
+        const dom = {
+            uploadZone: document.getElementById('uploadZone'),
+            fileInput: document.getElementById('fileInput'),
+            fileNameDisplay: document.getElementById('fileNameDisplay'),
+            errorBadge: document.getElementById('errorBadge'),
+            infoGrid: document.getElementById('infoGrid'),
+            convertBtn: document.getElementById('convertBtn'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            overlayTitle: document.getElementById('overlayTitle'),
+            stageLabel: document.getElementById('stageLabel'),
+            progressBarInner: document.getElementById('progressBarInner'),
+            progressPercent: document.getElementById('progressPercent'),
+            progressFrames: document.getElementById('progressFrames'),
+            progressETA: document.getElementById('progressETA'),
+            toastContainer: document.getElementById('toastContainer'),
+            // Settings
+            outputName: document.getElementById('outputName'),
+            fpsSlider: document.getElementById('fpsSlider'),
+            fpsBadge: document.getElementById('fpsBadge'),
+            fpsDisplay: document.getElementById('fpsDisplay'),
+            outputDuration: document.getElementById('outputDuration'),
+            durationHint: document.getElementById('durationHint'),
+            resolutionSelect: document.getElementById('resolutionSelect'),
+            customResolutionGroup: document.getElementById('customResolutionGroup'),
+            customWidth: document.getElementById('customWidth'),
+            customHeight: document.getElementById('customHeight'),
+            imageFormat: document.getElementById('imageFormat'),
+            jpgQualityGroup: document.getElementById('jpgQualityGroup'),
+            jpgQuality: document.getElementById('jpgQuality'),
+            jpgQualityBadge: document.getElementById('jpgQualityBadge'),
+            jpgQualityDisplay: document.getElementById('jpgQualityDisplay'),
+            webpQualityGroup: document.getElementById('webpQualityGroup'),
+            webpQuality: document.getElementById('webpQuality'),
+            webpQualityBadge: document.getElementById('webpQualityBadge'),
+            webpQualityDisplay: document.getElementById('webpQualityDisplay'),
+            pngCompressionGroup: document.getElementById('pngCompressionGroup'),
+            pngCompression: document.getElementById('pngCompression'),
+            pngCompressionBadge: document.getElementById('pngCompressionBadge'),
+            pngCompressionDisplay: document.getElementById('pngCompressionDisplay'),
+            resizeMethod: document.getElementById('resizeMethod'),
+            bgColor: document.getElementById('bgColor'),
+            customBgColorGroup: document.getElementById('customBgColorGroup'),
+            customBgColorInput: document.getElementById('customBgColorInput'),
+            frameNaming: document.getElementById('frameNaming'),
+            paddingDigits: document.getElementById('paddingDigits'),
+            // Estimation
+            estTotalFrames: document.getElementById('estTotalFrames'),
+            estZipSize: document.getElementById('estZipSize'),
+            estMemory: document.getElementById('estMemory'),
+            estTime: document.getElementById('estTime'),
+            estUploadCount: document.getElementById('estUploadCount'),
+        };
+
+        // ==================== APPLICATION STATE ====================
+        const state = {
+            videoFile: null,
+            videoMetadata: null, // { name, size, format, fps, duration, width, height, aspectRatio, codec, bitrate, hasAudio, orientation }
+            originalDuration: 0,
+            originalFPS: 30,
+            ffmpeg: null,
+            ffmpegReady: false,
+            ffmpegLoading: false,
+            isConverting: false,
+            conversionAborted: false,
+        };
+
+        // ==================== TOAST MANAGER ====================
+        class ToastManager {
+            static show(message, type = 'info', duration = 4000) {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.innerHTML = `
+              <span style="flex-shrink:0;">${ToastManager.getIcon(type)}</span>
+              <span style="flex:1;">${message}</span>
+              <span style="cursor:pointer;flex-shrink:0;font-size:1.1rem;line-height:1;" class="toast-close">&times;</span>
+            `;
+                toast.addEventListener('click', () => ToastManager.dismiss(toast));
+                dom.toastContainer.appendChild(toast);
+
+                const autoDismiss = setTimeout(() => ToastManager.dismiss(toast), duration);
+                toast._autoDismiss = autoDismiss;
+            }
+
+            static getIcon(type) {
+                switch (type) {
+                    case 'success':
+                        return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#51CF66" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+                    case 'error':
+                        return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+                    case 'warning':
+                        return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFB84D" stroke-width="3"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+                    default:
+                        return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C7CFA" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+                }
+            }
+
+            static dismiss(toast) {
+                if (toast._dismissing) return;
+                toast._dismissing = true;
+                clearTimeout(toast._autoDismiss);
+                toast.classList.add('removing');
+                setTimeout(() => {
+                    if (toast.parentNode) toast.parentNode.removeChild(toast);
+                }, 350);
+            }
+        }
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || isNaN(seconds)) return '—';
+            const s = parseFloat(seconds);
+            const min = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            const ms = Math.floor((s % 1) * 100);
+            if (min > 0) return `${min}m ${sec}.${ms.toString().padStart(2, '0')}s`;
+            return `${sec}.${ms.toString().padStart(2, '0')}s`;
+        }
+
+        function getFileExtension(filename) {
+            return filename.split('.').pop()?.toLowerCase() || 'unknown';
+        }
+
+        function getMimeTypeFromExtension(ext) {
+            const map = {
+                'mp4': 'video/mp4',
+                'mov': 'video/quicktime',
+                'webm': 'video/webm',
+                'avi': 'video/x-msvideo',
+                'mkv': 'video/x-matroska',
+            };
+            return map[ext] || 'video/unknown';
+        }
+
+        // ==================== FFMPEG INITIALIZATION ====================
+        async function initFFmpeg() {
+            if (state.ffmpegReady) return state.ffmpeg;
+            if (state.ffmpegLoading) {
+                // Wait for existing initialization
+                let attempts = 0;
+                while (!state.ffmpegReady && attempts < 600) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+                if (state.ffmpegReady) return state.ffmpeg;
+                throw new Error('FFmpeg initialization timed out');
+            }
+
+            state.ffmpegLoading = true;
+            const ffmpeg = new FFmpeg();
+
+            // Configure core CDN URLs
+            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+            try {
+                await ffmpeg.load({
+                    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                });
+            } catch (err) {
+                state.ffmpegLoading = false;
+                console.error('FFmpeg load error:', err);
+                throw new Error('Failed to load FFmpeg. Please check your internet connection and try again.');
+            }
+
+            state.ffmpeg = ffmpeg;
+            state.ffmpegReady = true;
+            state.ffmpegLoading = false;
+
+            // Listen for progress during conversion
+            ffmpeg.on('progress', (progressData) => {
+                if (state.isConverting && !state.conversionAborted) {
+                    const progress = Math.min(progressData.progress || 0, 1);
+                    // Map progress: 10%–80% for extraction phase
+                    const mappedProgress = 10 + progress * 70;
+                    updateOverlayProgress(mappedProgress, 'Extracting frames…', progressData);
+                }
+            });
+
+            console.log('FFmpeg.wasm initialized successfully');
+            return ffmpeg;
+        }
+
+        // Start FFmpeg loading in background immediately
+        const ffmpegInitPromise = initFFmpeg().catch(err => {
+            console.warn('Background FFmpeg init failed:', err.message);
+            // Will retry when user clicks convert
+            return null;
+        });
+
+        // ==================== VIDEO METADATA EXTRACTION ====================
+        async function extractVideoMetadata(file) {
+            const metadata = {
+                name: file.name,
+                size: file.size,
+                format: getFileExtension(file.name),
+                fps: 30,
+                duration: 0,
+                width: 0,
+                height: 0,
+                aspectRatio: '—',
+                codec: 'Unknown',
+                bitrate: null,
+                hasAudio: 'Unknown',
+                orientation: 'Landscape',
+            };
+
+            // Try to detect FPS and detailed metadata using a video element
+            const blobURL = URL.createObjectURL(file);
+            try {
+                const videoData = await new Promise((resolve, reject) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    video.muted = true;
+                    video.playsInline = true;
+
+                    const timeout = setTimeout(() => {
+                        URL.revokeObjectURL(blobURL);
+                        resolve({
+                            duration: video.duration || 0,
+                            width: video.videoWidth || 0,
+                            height: video.videoHeight || 0,
+                            fpsEstimate: 30,
+                        });
+                    }, 5000);
+
+                    video.onloadedmetadata = () => {
+                        clearTimeout(timeout);
+                        const dur = video.duration || 0;
+                        const w = video.videoWidth || 0;
+                        const h = video.videoHeight || 0;
+
+                        // Try to estimate FPS using requestVideoFrameCallback
+                        let fpsEstimate = 30;
+                        if ('requestVideoFrameCallback' in video) {
+                            let frameCount = 0;
+                            let startTime = null;
+                            const callback = (now, metadata) => {
+                                if (startTime === null) startTime = now;
+                                frameCount++;
+                                if (frameCount < 30 && now - startTime < 1500) {
+                                    video.requestVideoFrameCallback(callback);
+                                } else {
+                                    const elapsed = (now - startTime) / 1000;
+                                    fpsEstimate = elapsed > 0 ? Math.round(frameCount / elapsed) : 30;
+                                    fpsEstimate = Math.max(10, Math.min(60, fpsEstimate));
+                                    URL.revokeObjectURL(blobURL);
+                                    resolve({ duration: dur, width: w, height: h, fpsEstimate });
+                                }
+                            };
+                            video.requestVideoFrameCallback(callback);
+                            video.currentTime = 0.1;
+                            video.play().catch(() => {
+                                URL.revokeObjectURL(blobURL);
+                                resolve({ duration: dur, width: w, height: h, fpsEstimate: 30 });
+                            });
+                        } else {
+                            URL.revokeObjectURL(blobURL);
+                            resolve({ duration: dur, width: w, height: h, fpsEstimate: 30 });
+                        }
+                    };
+
+                    video.onerror = () => {
+                        clearTimeout(timeout);
+                        URL.revokeObjectURL(blobURL);
+                        resolve({ duration: 0, width: 0, height: 0, fpsEstimate: 30 });
+                    };
+
+                    video.src = blobURL;
+                });
+
+                metadata.duration = videoData.duration;
+                metadata.width = videoData.width;
+                metadata.height = videoData.height;
+                metadata.fps = videoData.fpsEstimate;
+
+                if (metadata.width > 0 && metadata.height > 0) {
+                    const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+                    const divisor = gcd(metadata.width, metadata.height);
+                    metadata.aspectRatio =
+                        `${metadata.width / divisor}:${metadata.height / divisor}`;
+                    metadata.orientation = metadata.width >= metadata.height ? 'Landscape' : 'Portrait';
+                }
+
+                // Estimate bitrate from file size and duration
+                if (metadata.duration > 0 && metadata.size > 0) {
+                    const bitrateBps = (metadata.size * 8) / metadata.duration;
+                    metadata.bitrate = Math.round(bitrateBps / 1000); // kbps
+                }
+
+                // Try to detect codec using MediaSource or canPlayType
+                const mimeType = getMimeTypeFromExtension(metadata.format);
+                const videoEl = document.createElement('video');
+                if (videoEl.canPlayType && videoEl.canPlayType(mimeType)) {
+                    const result = videoEl.canPlayType(mimeType);
+                    if (result === 'probably') metadata.codec = 'H.264 / AVC (likely)';
+                    else if (result === 'maybe') metadata.codec = 'H.264 / AVC (possible)';
+                }
+                if (metadata.format === 'webm') metadata.codec = 'VP8 / VP9 (likely)';
+                if (metadata.format === 'avi') metadata.codec = 'MJPEG / DivX (varies)';
+
+            } catch (err) {
+                console.warn('Metadata extraction partial:', err);
+                URL.revokeObjectURL(blobURL);
+            }
+
+            // Check for audio using a secondary approach
+            try {
+                const audioCheckURL = URL.createObjectURL(file);
+                const audioVideo = document.createElement('video');
+                audioVideo.preload = 'metadata';
+                audioVideo.muted = false;
+                await new Promise((res) => {
+                    audioVideo.onloadedmetadata = () => {
+                        // If there are audio tracks, the video element may report them
+                        if (audioVideo.audioTracks && audioVideo.audioTracks.length > 0) {
+                            metadata.hasAudio = `Yes (${audioVideo.audioTracks.length} track(s))`;
+                        } else if (audioVideo.mozHasAudio !== undefined) {
+                            metadata.hasAudio = audioVideo.mozHasAudio ? 'Yes' : 'No';
+                        } else {
+                            metadata.hasAudio = 'Check with FFmpeg';
+                        }
+                        URL.revokeObjectURL(audioCheckURL);
+                        res();
+                    };
+                    audioVideo.onerror = () => {
+                        URL.revokeObjectURL(audioCheckURL);
+                        res();
+                    };
+                    audioVideo.src = audioCheckURL;
+                    setTimeout(() => {
+                        URL.revokeObjectURL(audioCheckURL);
+                        res();
+                    }, 3000);
+                });
+            } catch {
+                metadata.hasAudio = 'Unknown';
+            }
+
+            return metadata;
+        }
+
+        // ==================== UI UPDATE FUNCTIONS ====================
+        function updateVideoInfoDisplay(metadata) {
+            const setInfo = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+
+            setInfo('infoFileName', metadata.name || '—');
+            setInfo('infoFileSize', metadata.size ? formatFileSize(metadata.size) : '—');
+            setInfo('infoFormat', metadata.format?.toUpperCase() || '—');
+            setInfo('infoFPS', metadata.fps ? `${metadata.fps} fps` : '—');
+            setInfo('infoDuration', metadata.duration ? formatDuration(metadata.duration) : '—');
+            setInfo('infoResolution',
+                metadata.width && metadata.height ? `${metadata.width} × ${metadata.height}` : '—');
+            setInfo('infoAspectRatio', metadata.aspectRatio || '—');
+            setInfo('infoCodec', metadata.codec || '—');
+            const estFrames = metadata.duration && metadata.fps ? Math.round(metadata.duration * metadata.fps) : null;
+            setInfo('infoEstFrames', estFrames !== null ? estFrames.toLocaleString() : '—');
+            setInfo('infoBitrate', metadata.bitrate ? `${metadata.bitrate} kbps` : '—');
+            setInfo('infoAudio', metadata.hasAudio || '—');
+            setInfo('infoOrientation', metadata.orientation || '—');
+        }
+
+        function updateEstimationDisplay() {
+            const outputFPS = parseInt(dom.fpsSlider.value) || 30;
+            const origDuration = state.originalDuration || 0;
+            const outputDurInput = parseFloat(dom.outputDuration.value);
+            const effectiveDuration = (outputDurInput > 0 && outputDurInput <= origDuration) ? outputDurInput :
+                origDuration;
+            const totalFrames = Math.round(effectiveDuration * outputFPS);
+
+            const resStr = getEffectiveResolution();
+            const [rw, rh] = resStr.split('x').map(Number);
+            const pixelCount = rw * rh;
+            const format = dom.imageFormat.value;
+
+            // Rough estimation of bytes per frame
+            let bytesPerFrame = pixelCount * 4; // raw RGBA
+            if (format === 'jpg') {
+                const quality = parseInt(dom.jpgQuality.value) || 85;
+                bytesPerFrame = pixelCount * 0.4 * (quality / 100);
+            } else if (format === 'webp') {
+                const quality = parseInt(dom.webpQuality.value) || 80;
+                bytesPerFrame = pixelCount * 0.5 * (quality / 100);
+            } else {
+                const compLevel = parseInt(dom.pngCompression.value) || 3;
+                bytesPerFrame = pixelCount * 1.5 * (1 - compLevel / 20);
+            }
+            bytesPerFrame = Math.max(bytesPerFrame, 200);
+
+            const estZipBytes = totalFrames * bytesPerFrame;
+            const estMemoryMB = (pixelCount * 4 * Math.min(totalFrames, 10)) / (1024 * 1024);
+            const estTimeSec = totalFrames * (pixelCount / (1024 * 1024)) * 0.003 + 2;
+
+            dom.estTotalFrames.textContent = totalFrames > 0 ? totalFrames.toLocaleString() : '—';
+            dom.estZipSize.textContent = estZipBytes > 0 ? formatFileSize(Math.round(estZipBytes)) : '—';
+            dom.estMemory.textContent = estMemoryMB > 0.1 ? `${estMemoryMB.toFixed(1)} MB` : '< 0.1 MB';
+            dom.estTime.textContent = estTimeSec > 1 ? `${Math.ceil(estTimeSec)} seconds` : '< 1 second';
+            dom.estUploadCount.textContent = totalFrames > 0 ? totalFrames.toLocaleString() : '—';
+        }
+
+        function getEffectiveResolution() {
+            const selected = dom.resolutionSelect.value;
+            if (selected === 'custom') {
+                const w = parseInt(dom.customWidth.value) || 1024;
+                const h = parseInt(dom.customHeight.value) || 1024;
+                return `${Math.max(32, Math.min(4096, w))}x${Math.max(32, Math.min(4096, h))}`;
+            }
+            return selected;
+        }
+
+        function getEffectiveOutputDuration() {
+            const origDuration = state.originalDuration || 0;
+            const inputVal = parseFloat(dom.outputDuration.value);
+            if (inputVal > 0 && inputVal <= origDuration) return inputVal;
+            return origDuration;
+        }
+
+        function updateConvertButtonState() {
+            const hasFile = !!state.videoFile;
+            const hasDuration = state.originalDuration > 0;
+            dom.convertBtn.disabled = !hasFile || !hasDuration || state.isConverting;
+        }
+
+        function updateAllEstimations() {
+            updateEstimationDisplay();
+            updateConvertButtonState();
+        }
+
+        // ==================== FILE HANDLING ====================
+        async function handleVideoFile(file) {
+            // Validate file type
+            const validExtensions = ['mp4', 'mov', 'webm', 'avi', 'mkv'];
+            const ext = getFileExtension(file.name);
+            if (!validExtensions.includes(ext)) {
+                ToastManager.show(
+                    `Unsupported format: .${ext}. Please use MP4, MOV, WEBM, AVI, or MKV.`,
+                    'error', 5000);
+                return;
+            }
+
+            // Extract metadata first
+            const metadata = await extractVideoMetadata(file);
+
+            // Check 60-second limit
+            if (metadata.duration > 60) {
+                dom.errorBadge.textContent = '⚠ Video exceeds 60 second limit!';
+                dom.errorBadge.style.display = 'inline-block';
+                dom.uploadZone.classList.remove('has-file');
+                dom.fileNameDisplay.style.display = 'none';
+                state.videoFile = null;
+                state.videoMetadata = null;
+                state.originalDuration = 0;
+                updateVideoInfoDisplay({ name: '—', size: null, format: '—', fps: null, duration: null, width: null,
+                    height: null, aspectRatio: '—', codec: '—', bitrate: null, hasAudio: '—', orientation: '—' });
+                updateAllEstimations();
+                ToastManager.show('Video duration exceeds the 60-second maximum limit.', 'error', 6000);
+                return;
+            }
+
+            // Store state
+            state.videoFile = file;
+            state.videoMetadata = metadata;
+            state.originalDuration = metadata.duration || 0;
+            state.originalFPS = metadata.fps || 30;
+
+            // Update UI
+            dom.errorBadge.style.display = 'none';
+            dom.uploadZone.classList.add('has-file');
+            dom.fileNameDisplay.textContent = `✅ ${file.name}`;
+            dom.fileNameDisplay.style.display = 'block';
+            updateVideoInfoDisplay(metadata);
+
+            // Set output duration default
+            dom.outputDuration.value = metadata.duration ? metadata.duration.toFixed(1) : '0';
+            dom.outputDuration.max = Math.min(metadata.duration || 60, 60);
+            dom.durationHint.textContent = `Max: ${formatDuration(Math.min(metadata.duration || 60, 60))}`;
+
+            // Update FPS slider to match detected FPS (clamped)
+            const detectedFPS = Math.max(10, Math.min(60, Math.round(metadata.fps || 30)));
+            dom.fpsSlider.value = detectedFPS;
+            dom.fpsBadge.textContent = detectedFPS;
+            dom.fpsDisplay.textContent = detectedFPS;
+
+            updateAllEstimations();
+            ToastManager.show(`Video loaded: ${file.name} (${formatDuration(metadata.duration)})`, 'success');
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        // Upload zone click
+        dom.uploadZone.addEventListener('click', (e) => {
+            if (e.target === dom.fileInput) return;
+            dom.fileInput.click();
+        });
+
+        // File input change
+        dom.fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (file) await handleVideoFile(file);
+        });
+
+        // Drag and drop
+        dom.uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dom.uploadZone.classList.add('drag-over');
+        });
+
+        dom.uploadZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dom.uploadZone.classList.remove('drag-over');
+        });
+
+        dom.uploadZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dom.uploadZone.classList.remove('drag-over');
+            const file = e.dataTransfer?.files?.[0];
+            if (file) await handleVideoFile(file);
+        });
+
+        // Keyboard accessibility for upload zone
+        dom.uploadZone.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                dom.fileInput.click();
+            }
+        });
+
+        // Settings change listeners
+        dom.fpsSlider.addEventListener('input', () => {
+            const val = parseInt(dom.fpsSlider.value);
+            dom.fpsBadge.textContent = val;
+            dom.fpsDisplay.textContent = val;
+            updateAllEstimations();
+        });
+
+        dom.outputDuration.addEventListener('input', () => {
+            const val = parseFloat(dom.outputDuration.value);
+            const max = state.originalDuration || 60;
+            if (val > max) dom.outputDuration.value = max.toFixed(1);
+            if (val < 0.1 && val > 0) dom.outputDuration.value = '0.1';
+            updateAllEstimations();
+        });
+
+        dom.resolutionSelect.addEventListener('change', () => {
+            const isCustom = dom.resolutionSelect.value === 'custom';
+            dom.customResolutionGroup.style.display = isCustom ? 'block' : 'none';
+            updateAllEstimations();
+        });
+
+        dom.customWidth.addEventListener('input', updateAllEstimations);
+        dom.customHeight.addEventListener('input', updateAllEstimations);
+
+        dom.imageFormat.addEventListener('change', () => {
+            const format = dom.imageFormat.value;
+            dom.jpgQualityGroup.style.display = format === 'jpg' ? 'block' : 'none';
+            dom.webpQualityGroup.style.display = format === 'webp' ? 'block' : 'none';
+            dom.pngCompressionGroup.style.display = format === 'png' ? 'block' : 'none';
+            updateAllEstimations();
+        });
+
+        dom.jpgQuality.addEventListener('input', () => {
+            const val = parseInt(dom.jpgQuality.value);
+            dom.jpgQualityBadge.textContent = val;
+            dom.jpgQualityDisplay.textContent = val;
+            updateAllEstimations();
+        });
+
+        dom.webpQuality.addEventListener('input', () => {
+            const val = parseInt(dom.webpQuality.value);
+            dom.webpQualityBadge.textContent = val;
+            dom.webpQualityDisplay.textContent = val;
+            updateAllEstimations();
+        });
+
+        dom.pngCompression.addEventListener('input', () => {
+            const val = parseInt(dom.pngCompression.value);
+            dom.pngCompressionBadge.textContent = val;
+            dom.pngCompressionDisplay.textContent = val;
+            updateAllEstimations();
+        });
+
+        dom.resizeMethod.addEventListener('change', updateAllEstimations);
+        dom.bgColor.addEventListener('change', () => {
+            dom.customBgColorGroup.style.display = dom.bgColor.value === 'custom' ? 'block' : 'none';
+            updateAllEstimations();
+        });
+        dom.frameNaming.addEventListener('change', updateAllEstimations);
+        dom.paddingDigits.addEventListener('change', updateAllEstimations);
+
+        // ==================== OVERLAY PROGRESS ====================
+        function showOverlay(title, stage) {
+            dom.loadingOverlay.classList.add('active');
+            dom.overlayTitle.textContent = title;
+            dom.stageLabel.textContent = stage;
+            dom.progressBarInner.style.width = '0%';
+            dom.progressPercent.textContent = '0%';
+            dom.progressFrames.textContent = 'Frame: —';
+            dom.progressETA.textContent = 'ETA: —';
+        }
+
+        function hideOverlay() {
+            dom.loadingOverlay.classList.remove('active');
+        }
+
+        function updateOverlayProgress(percent, stageLabel, progressData = null) {
+            const p = Math.min(Math.round(percent), 100);
+            dom.progressBarInner.style.width = `${p}%`;
+            dom.progressPercent.textContent = `${p}%`;
+            dom.stageLabel.textContent = stageLabel;
+            if (progressData && progressData.time) {
+                const timeMicro = progressData.time;
+                const timeSec = timeMicro / 1_000_000;
+                dom.progressFrames.textContent = `Time: ${formatDuration(timeSec)}`;
+            }
+            // Estimate ETA
+            if (state._conversionStartTime && p > 0 && p < 99) {
+                const elapsed = (Date.now() - state._conversionStartTime) / 1000;
+                const etaSec = (elapsed / p) * (100 - p);
+                dom.progressETA.textContent = `ETA: ${formatDuration(etaSec)}`;
+            } else if (p >= 99) {
+                dom.progressETA.textContent = 'ETA: Finalizing…';
+            }
+        }
+
+        // ==================== CONVERSION LOGIC ====================
+        dom.convertBtn.addEventListener('click', async () => {
+            if (state.isConverting) return;
+            if (!state.videoFile || !state.originalDuration) {
+                ToastManager.show('Please upload a video first.', 'warning');
+                return;
+            }
+
+            state.isConverting = true;
+            state.conversionAborted = false;
+            state._conversionStartTime = Date.now();
+            updateConvertButtonState();
+            showOverlay('Processing Video…', 'Initializing FFmpeg…');
+
+            try {
+                // Step 1: Ensure FFmpeg is ready
+                updateOverlayProgress(2, 'Loading FFmpeg engine…');
+                const ffmpeg = await initFFmpeg();
+                if (!ffmpeg) throw new Error('FFmpeg failed to initialize');
+
+                updateOverlayProgress(8, 'FFmpeg ready. Preparing video…');
+
+                // Step 2: Write input file to FFmpeg virtual filesystem
+                const inputExt = getFileExtension(state.videoFile.name);
+                const inputFileName = `input.${inputExt}`;
+                updateOverlayProgress(10, 'Reading video file into memory…');
+                await ffmpeg.writeFile(inputFileName, await fetchFile(state.videoFile));
+
+                // Step 3: Build FFmpeg command
+                const outputFPS = parseInt(dom.fpsSlider.value) || 30;
+                const effectiveDuration = getEffectiveOutputDuration();
+                const resStr = getEffectiveResolution();
+                const [targetW, targetH] = resStr.split('x').map(Number);
+                const format = dom.imageFormat.value;
+                const resizeMethod = dom.resizeMethod.value;
+                const bgColorSel = dom.bgColor.value;
+                const paddingDigits = parseInt(dom.paddingDigits.value) || 4;
+                const frameNaming = dom.frameNaming.value;
+
+                // Map resize method to FFmpeg flag
+                const scaleFlags = {
+                    'nearest': 'neighbor',
+                    'bilinear': 'bilinear',
+                    'bicubic': 'bicubic',
+                    'lanczos': 'lanczos',
+                };
+                const scaleFlag = scaleFlags[resizeMethod] || 'bilinear';
+
+                // Build scale + pad filter
+                let bgColorHex = '0x000000@0'; // transparent default
+                if (bgColorSel === 'black') bgColorHex = 'black';
+                else if (bgColorSel === 'white') bgColorHex = 'white';
+                else if (bgColorSel === 'custom') {
+                    const hex = dom.customBgColorInput.value.replace('#', '');
+                    bgColorHex = `0x${hex}@1`;
+                }
+
+                const vfFilter =
+                    `fps=${outputFPS},scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease:flags=${scaleFlag},pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:color=${bgColorHex}`;
+
+                // Build output filename pattern
+                let outputPattern;
+                const padStr = `%0${paddingDigits}d`;
+                if (frameNaming === 'video_1') {
+                    outputPattern = `video_${padStr}`;
+                } else if (frameNaming === 'frame0001') {
+                    outputPattern = `frame${padStr}`;
+                } else {
+                    // video-0001 style
+                    outputPattern = `video-${padStr}`;
+                }
+
+                const outputExt = format === 'jpg' ? 'jpg' : format === 'webp' ? 'webp' : 'png';
+                const fullOutputPattern = `${outputPattern}.${outputExt}`;
+
+                // Build the FFmpeg arguments
+                const ffmpegArgs = ['-i', inputFileName, '-vf', vfFilter];
+
+                // Duration trim
+                if (effectiveDuration > 0 && effectiveDuration < (state.originalDuration || 999)) {
+                    ffmpegArgs.push('-t', effectiveDuration.toString());
+                }
+
+                // Format-specific options
+                if (format === 'png') {
+                    const compLevel = parseInt(dom.pngCompression.value) || 3;
+                    ffmpegArgs.push('-c:v', 'png', '-compression_level', compLevel.toString());
+                } else if (format === 'jpg') {
+                    const quality = parseInt(dom.jpgQuality.value) || 85;
+                    // Map 1-100 quality to FFmpeg q:v 31-1 (lower is better)
+                    const qv = Math.round(31 - (quality / 100) * 30);
+                    ffmpegArgs.push('-c:v', 'mjpeg', '-q:v', Math.max(1, Math.min(31, qv)).toString());
+                } else if (format === 'webp') {
+                    const quality = parseInt(dom.webpQuality.value) || 80;
+                    ffmpegArgs.push('-c:v', 'libwebp', '-quality', quality.toString());
+                }
+
+                ffmpegArgs.push('-f', 'image2', fullOutputPattern);
+
+                updateOverlayProgress(12, 'Starting frame extraction…');
+
+                // Step 4: Execute FFmpeg
+                state._conversionStartTime = Date.now();
+                await ffmpeg.exec(ffmpegArgs);
+
+                if (state.conversionAborted) {
+                    hideOverlay();
+                    state.isConverting = false;
+                    updateConvertButtonState();
+                    return;
+                }
+
+                updateOverlayProgress(82, 'Reading extracted frames…');
+
+                // Step 5: List output files
+                const fileList = await ffmpeg.listDir('/');
+                const outputFiles = fileList.filter(f => f.name.endsWith(`.${outputExt}`) && !f.isDir);
+                // Sort by name
+                outputFiles.sort((a, b) => a.name.localeCompare(b.name));
+
+                if (outputFiles.length === 0) {
+                    throw new Error('No frames were extracted. The video may be corrupted or too short.');
+                }
+
+                updateOverlayProgress(85, `Found ${outputFiles.length} frames. Creating ZIP…`);
+
+                // Step 6: Create ZIP
+                const zip = new JSZip();
+                const totalFrames = outputFiles.length;
+
+                for (let i = 0; i < totalFrames; i++) {
+                    const fileName = outputFiles[i].name;
+                    const data = await ffmpeg.readFile(fileName);
+                    zip.file(fileName, data);
+
+                    const zipProgress = 85 + (i / totalFrames) * 10;
+                    updateOverlayProgress(zipProgress, `Packing frame ${i + 1} of ${totalFrames}…`);
+                    dom.progressFrames.textContent = `Frame: ${i + 1} / ${totalFrames}`;
+
+                    // Yield to keep UI responsive
+                    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+
+                // Step 7: Add info.json
+                const infoJSON = {
+                    original: {
+                        name: state.videoMetadata?.name || state.videoFile.name,
+                        fps: state.originalFPS,
+                        duration: parseFloat(state.originalDuration.toFixed(2)),
+                        resolution: state.videoMetadata ? `${state.videoMetadata.width}x${state.videoMetadata.height}` :
+                            'unknown',
+                    },
+                    output: {
+                        fps: outputFPS,
+                        duration: parseFloat(effectiveDuration.toFixed(2)),
+                        resolution: `${targetW}x${targetH}`,
+                        format: format,
+                    },
+                    totalFrames: totalFrames,
+                    created: new Date().toISOString(),
+                };
+                zip.file('info.json', JSON.stringify(infoJSON, null, 2));
+
+                updateOverlayProgress(96, 'Generating ZIP file…');
+
+                // Step 8: Generate ZIP blob
+                const zipBlob = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 },
+                }, (meta) => {
+                    const zipGenProgress = 96 + meta.percent * 0.03;
+                    updateOverlayProgress(zipGenProgress, 'Compressing ZIP…');
+                });
+
+                updateOverlayProgress(99, 'Preparing download…');
+
+                // Step 9: Trigger download
+                const outputName = dom.outputName.value.trim() || 'video';
+                const safeName = outputName.replace(/[^a-zA-Z0-9_-]/g, '_');
+                saveAs(zipBlob, `${safeName}.zip`);
+
+                updateOverlayProgress(100, 'Download ready!');
+
+                // Brief delay so user sees 100%
+                await new Promise(r => setTimeout(r, 600));
+
+                hideOverlay();
+                state.isConverting = false;
+                updateConvertButtonState();
+
+                ToastManager.show(
+                    `Success! ${totalFrames} frames exported as ${safeName}.zip`,
+                    'success',
+                    6000);
+
+                // Cleanup FFmpeg virtual filesystem
+                try {
+                    await ffmpeg.deleteFile(inputFileName);
+                    for (const f of outputFiles) {
+                        await ffmpeg.deleteFile(f.name);
+                    }
+                } catch (cleanupErr) {
+                    console.warn('Cleanup warning:', cleanupErr);
+                }
+
+            } catch (err) {
+                console.error('Conversion error:', err);
+                hideOverlay();
+                state.isConverting = false;
+                state.conversionAborted = true;
+                updateConvertButtonState();
+                ToastManager.show(`Error: ${err.message || 'Conversion failed'}`, 'error', 8000);
+
+                // Attempt cleanup
+                try {
+                    const ffmpeg = state.ffmpeg;
+                    if (ffmpeg) {
+                        const allFiles = await ffmpeg.listDir('/');
+                        for (const f of allFiles) {
+                            if (!f.isDir && f.name !== '.' && f.name !== '..') {
+                                await ffmpeg.deleteFile(f.name).catch(() => {});
+                            }
+                        }
+                    }
+                } catch { /* ignore cleanup errors */ }
+            }
+        });
+
+        // ==================== INITIAL SETUP ====================
+        function initializeApp() {
+            // Set initial estimation display
+            updateAllEstimations();
+
+            // Update resolution display on custom inputs
+            dom.customWidth.addEventListener('input', () => {
+                dom.customWidth.value = Math.max(32, Math.min(4096, parseInt(dom.customWidth.value) || 1024));
+                updateAllEstimations();
+            });
+            dom.customHeight.addEventListener('input', () => {
+                dom.customHeight.value = Math.max(32, Math.min(4096, parseInt(dom.customHeight.value) || 1024));
+                updateAllEstimations();
+            });
+
+            // Preload FFmpeg in background
+            ffmpegInitPromise.then(() => {
+                console.log('FFmpeg preloaded successfully');
+            }).catch(err => {
+                console.warn('FFmpeg preload failed, will retry on demand:', err.message);
+            });
+
+            console.log('Vinnexx Video Frame Converter initialized');
+            console.log('Neo Brutalism design active');
+            console.log('Dark mode:', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'ON' : 'OFF');
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            console.log('Theme changed:',
+                window.matchMedia('(prefers-color-scheme: dark)').matches ? 'Dark' : 'Light');
+        });
+
+        // Initialize the app
+        initializeApp();
+    </script>
+</body>
+</html>
